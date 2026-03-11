@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Envipco Business Card Generator</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#f0f2f0;--surface:#ffffff;--surface2:#f7f8f7;
+    --border:rgba(0,0,0,0.09);--text:#111;--text-muted:#888;
+    --accent:#1a4a2e;--accent-light:#e8f0eb;
+    --radius:16px;
+    --shadow:0 2px 16px rgba(0,0,0,0.08),0 1px 3px rgba(0,0,0,0.05);
+    --shadow-lg:0 8px 40px rgba(0,0,0,0.12),0 2px 8px rgba(0,0,0,0.06);
+  }
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+  
+  #gate{width:100%;max-width:400px;background:var(--surface);border-radius:24px;padding:48px 40px;box-shadow:var(--shadow-lg);text-align:center;animation:fadeUp 0.4s ease}
+  #gate h1{font-size:22px;font-weight:600;margin-bottom:8px}
+  #gate p{color:var(--text-muted);font-size:14px;margin-bottom:28px}
+  #gate input{width:100%;padding:14px 16px;border:1.5px solid var(--border);border-radius:12px;font-size:15px;font-family:inherit;outline:none;transition:border-color 0.2s;background:var(--surface2);margin-bottom:12px}
+  #gate input:focus{border-color:var(--accent)}
+  #gate-error{color:#c0392b;font-size:13px;margin-bottom:12px;min-height:18px}
+  
+  #app{width:100%;max-width:720px;display:none;animation:fadeUp 0.4s ease}
+  .app-header{display:flex;align-items:center;justify-content:flex-end;margin-bottom:28px}
+  .header-right{display:flex;align-items:center;gap:12px}
+  .step-indicator{display:flex;gap:6px;align-items:center}
+  .step-dot{width:8px;height:8px;border-radius:50%;background:var(--border);transition:background 0.3s}
+  .step-dot.active{background:var(--accent)}
+  .icon-btn{width:40px;height:40px;border-radius:12px;border:1.5px solid var(--border);background:var(--surface);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.2s;color:var(--text-muted)}
+  .icon-btn:hover{background:var(--accent-light);border-color:var(--accent);color:var(--accent)}
+  
+  .card{background:var(--surface);border-radius:var(--radius);padding:36px;box-shadow:var(--shadow)}
+  .card-title{font-size:20px;font-weight:600;margin-bottom:6px}
+  .card-subtitle{font-size:14px;color:var(--text-muted);margin-bottom:28px}
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .field{display:flex;flex-direction:column;gap:6px}
+  .field.full{grid-column:1/-1}
+  label{font-size:12px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.06em}
+  input[type=text],input[type=email],input[type=tel],textarea{padding:12px 14px;border:1.5px solid var(--border);border-radius:10px;font-size:15px;font-family:inherit;background:var(--surface2);outline:none;transition:border-color 0.2s;color:var(--text)}
+  input[type=text]:focus,input[type=email]:focus,input[type=tel]:focus,textarea:focus{border-color:var(--accent)}
+  textarea{resize:vertical;min-height:56px;line-height:1.4;font-size:15px}
+  
+  .backs-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px}
+  .back-option{position:relative;cursor:pointer}
+  .back-option input[type=checkbox]{position:absolute;opacity:0}
+  .back-thumb{border-radius:10px;overflow:hidden;border:2.5px solid transparent;transition:all 0.2s;aspect-ratio:8.5/5.5;position:relative}
+  .back-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .back-check{position:absolute;top:6px;right:6px;width:22px;height:22px;border-radius:50%;background:var(--accent);color:white;display:flex;align-items:center;justify-content:center;font-size:12px;opacity:0;transition:opacity 0.2s;box-shadow:0 2px 6px rgba(0,0,0,0.2)}
+  .back-option input:checked+.back-thumb{border-color:var(--accent)}
+  .back-option input:checked+.back-thumb .back-check{opacity:1}
+  .back-label{font-size:11px;color:var(--text-muted);text-align:center;margin-top:6px}
+  
+  .btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:28px}
+  .btn{padding:12px 24px;border-radius:12px;font-size:14px;font-family:inherit;font-weight:500;cursor:pointer;border:none;transition:all 0.2s}
+  .btn-ghost{background:transparent;border:1.5px solid var(--border);color:var(--text-muted)}
+  .btn-ghost:hover{border-color:var(--accent);color:var(--accent)}
+  .btn-primary{background:var(--accent);color:white;box-shadow:0 2px 8px rgba(26,74,46,0.25)}
+  .btn-primary:hover{background:#153d25;box-shadow:0 4px 16px rgba(26,74,46,0.3);transform:translateY(-1px)}
+  .btn-primary:active{transform:translateY(0)}
+  .btn-primary:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+
+  /* Settings Modal */
+  #settings-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.35);z-index:99;display:none;backdrop-filter:blur(3px);animation:fadeIn 0.2s ease}
+  #settings-overlay.open{display:flex;align-items:center;justify-content:center}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+  .modal{background:var(--surface);border-radius:20px;box-shadow:var(--shadow-lg);width:92vw;max-width:860px;max-height:88vh;display:flex;flex-direction:column;animation:modalUp 0.3s ease;overflow:hidden}
+  @keyframes modalUp{from{opacity:0;transform:translateY(24px) scale(0.97)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+  .modal-header{display:flex;align-items:center;justify-content:space-between;padding:24px 28px 0;flex-shrink:0}
+  .modal-header h2{font-size:20px;font-weight:600}
+  .close-btn{width:32px;height:32px;border-radius:8px;border:none;background:var(--surface2);cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--text-muted);font-size:14px;transition:all 0.2s}
+  .close-btn:hover{background:var(--accent-light);color:var(--accent)}
+
+  .modal-tabs{display:flex;gap:0;padding:16px 28px 0;border-bottom:1.5px solid var(--border);flex-shrink:0}
+  .modal-tab{padding:10px 20px;font-size:13px;font-weight:500;color:var(--text-muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1.5px;transition:all 0.2s;background:none;border-top:none;border-left:none;border-right:none;font-family:inherit}
+  .modal-tab:hover{color:var(--text)}
+  .modal-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+  .modal-body{padding:24px 28px 28px;overflow-y:auto;flex:1}
+  .tab-content{display:none}
+  .tab-content.active{display:block;animation:fadeUp 0.25s ease}
+
+  .settings-section{margin-bottom:24px}
+  .settings-section:last-child{margin-bottom:0}
+  .settings-section h3{font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-muted);margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid var(--border)}
+  .upload-slot{border:1.5px dashed var(--border);border-radius:10px;padding:12px;display:flex;align-items:center;gap:12px;cursor:pointer;transition:border-color 0.2s;margin-bottom:8px;position:relative;overflow:hidden}
+  .upload-slot:hover{border-color:var(--accent)}
+  .upload-slot input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+  .upload-thumb{width:48px;height:30px;border-radius:5px;object-fit:cover;background:var(--surface2);flex-shrink:0}
+  .upload-info .upload-name{font-size:13px;font-weight:500}
+  .upload-info .upload-hint{font-size:11px;color:var(--text-muted)}
+  .coords-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .coord-field{display:flex;flex-direction:column;gap:4px}
+  .coord-field label{font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em}
+  .coord-field input{padding:8px 10px;border:1.5px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;background:var(--surface2);outline:none;width:100%}
+  .coord-field input:focus{border-color:var(--accent)}
+  .coord-section-label{font-size:12px;font-weight:600;color:var(--text);margin:12px 0 8px}
+
+  /* Two-column layout for positioning tab */
+  .positioning-layout{display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .positioning-controls{display:flex;flex-direction:column;gap:0}
+  .positioning-preview{display:flex;flex-direction:column;gap:0;position:sticky;top:0}
+
+  .preview-container{border:1px solid var(--border);border-radius:10px;overflow:hidden;background:var(--surface2)}
+  .preview-label{font-size:11px;font-weight:500;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.05em;padding:8px 12px;background:var(--surface2);border-bottom:1px solid var(--border)}
+  .preview-card-wrap{position:relative;width:100%;aspect-ratio:9.1/6.1;overflow:hidden}
+  .preview-card-wrap img{width:100%;height:100%;object-fit:cover;display:block}
+  .preview-text{position:absolute;color:#000;white-space:pre-wrap;font-family:'Poppins',sans-serif;pointer-events:none;line-height:1.35}
+
+  @keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+  .screen{display:none}
+  .screen.active{display:block;animation:fadeUp 0.3s ease}
+  .spinner{width:16px;height:16px;border:2px solid rgba(255,255,255,0.4);border-top-color:white;border-radius:50%;animation:spin 0.6s linear infinite;display:inline-block;vertical-align:middle;margin-right:6px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  @media(max-width:700px){
+    .positioning-layout{grid-template-columns:1fr}
+  }
+</style>
+</head>
+<body>
+
+<div id="gate">
+  <div style="margin-bottom:28px">
+    <img src="https://26007194.fs1.hubspotusercontent-eu1.net/hubfs/26007194/Business%20Card%20Generator%20Files%20(Do%20Not%20Delete)/front.png" alt="Envipco" style="height:42px;object-fit:contain;display:block;margin:0 auto">
+  </div>
+  <h1>Business Card Generator</h1>
+  <p>Internal tool · Enter your access password to continue.</p>
+  <input type="password" id="pw-input" placeholder="Password" autocomplete="current-password">
+  <div id="gate-error"></div>
+  <button class="btn btn-primary" style="width:100%" onclick="checkPassword()">Continue &rarr;</button>
+</div>
+
+<div id="app">
+  <div class="app-header">
+    <div class="header-right">
+      <div class="step-indicator">
+        <div class="step-dot active" id="dot1"></div>
+        <div class="step-dot" id="dot2"></div>
+      </div>
+      <button class="icon-btn" onclick="openSettings()" title="Settings">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+      </button>
+    </div>
+  </div>
+
+  <div id="screen1" class="screen active">
+    <div class="card">
+      <div class="card-title">Employee Details</div>
+      <div class="card-subtitle">Fill in the contact information that will appear on the card front.</div>
+      <div class="form-grid">
+        <div class="field"><label>First Name *</label><input type="text" id="firstName"></div>
+        <div class="field"><label>Last Name *</label><input type="text" id="lastName"></div>
+        <div class="field full"><label>Professional Title *</label><input type="text" id="jobTitle"></div>
+        <div class="field full"><label>Email Address *</label><input type="email" id="email"></div>
+        <div class="field full"><label>Work Mobile *</label><input type="tel" id="mobile"></div>
+        <div class="field full">
+          <label>Office Address *</label>
+          <textarea id="officeAddress" rows="2"></textarea>
+        </div>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-primary" onclick="goToScreen2()">Select Back Designs &rarr;</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="screen2" class="screen">
+    <div class="card">
+      <div class="card-title">Back Artwork</div>
+      <div class="card-subtitle">Select which designs to include. Each produces a batch of 50 cards.</div>
+      <div class="backs-grid" id="backsGrid"></div>
+      <div class="btn-row">
+        <button class="btn btn-ghost" onclick="goToScreen1()">&larr; Back</button>
+        <button class="btn btn-primary" id="exportBtn" onclick="exportPDF()">Export PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Settings Modal -->
+<div id="settings-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <h2>Settings</h2>
+      <button class="close-btn" onclick="closeSettings()">&#x2715;</button>
+    </div>
+    <div class="modal-tabs">
+      <button class="modal-tab active" onclick="switchTab('artwork',this)">Artwork</button>
+      <button class="modal-tab" onclick="switchTab('positioning',this)">Text &amp; Preview</button>
+      <button class="modal-tab" onclick="switchTab('access',this)">Access</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- Tab 1: Artwork -->
+      <div class="tab-content active" id="tab-artwork">
+        <div class="settings-section">
+          <h3>Card Artwork</h3>
+          <div id="artworkSlots"></div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Text Positioning + Font Sizes + Preview -->
+      <div class="tab-content" id="tab-positioning">
+        <div class="positioning-layout">
+          <div class="positioning-controls">
+            <div class="settings-section">
+              <h3>Text Positions <small style="font-weight:400;text-transform:none;letter-spacing:0;font-size:10px">(points from bottom-left)</small></h3>
+              <div id="coordFields"></div>
+            </div>
+            <div class="settings-section">
+              <h3>Font Sizes (pt)</h3>
+              <div class="coords-grid">
+                <div class="coord-field"><label>Name</label><input type="number" id="fs-name" value="9" min="4" max="20" step="0.5" oninput="updatePreview()"></div>
+                <div class="coord-field"><label>Title</label><input type="number" id="fs-title" value="7.5" min="4" max="20" step="0.5" oninput="updatePreview()"></div>
+                <div class="coord-field"><label>Email</label><input type="number" id="fs-email" value="7" min="4" max="20" step="0.5" oninput="updatePreview()"></div>
+                <div class="coord-field"><label>Mobile</label><input type="number" id="fs-mobile" value="7" min="4" max="20" step="0.5" oninput="updatePreview()"></div>
+                <div class="coord-field"><label>Address</label><input type="number" id="fs-address" value="6.5" min="4" max="20" step="0.5" oninput="updatePreview()"></div>
+              </div>
+              <div style="margin-top:6px">
+                <div class="coord-field">
+                  <label>Address Line Spacing (pt)</label>
+                  <input type="number" id="fs-address-leading" value="9" min="4" max="24" step="0.5" oninput="updatePreview()">
+                </div>
+              </div>
+            </div>
+            <button class="btn btn-primary" style="width:100%;margin-top:8px" onclick="saveSettings()">Save All Settings</button>
+          </div>
+          <div class="positioning-preview">
+            <div class="preview-container">
+              <div class="preview-label">Live Preview — Front Card</div>
+              <div class="preview-card-wrap" id="previewWrap">
+                <img id="previewBg" src="https://26007194.fs1.hubspotusercontent-eu1.net/hubfs/26007194/Business%20Card%20Generator%20Files%20(Do%20Not%20Delete)/front.png" alt="Preview">
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Access -->
+      <div class="tab-content" id="tab-access">
+        <div class="settings-section">
+          <h3>Password</h3>
+          <div class="coord-field" style="margin-bottom:12px">
+            <label>New Password</label>
+            <input type="password" id="newPassword">
+          </div>
+          <button class="btn btn-ghost" style="width:100%" onclick="savePassword()">Update Password</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const EMBEDDED_BACKS = [
+  'https://26007194.fs1.hubspotusercontent-eu1.net/hubfs/26007194/Business%20Card%20Generator%20Files%20(Do%20Not%20Delete)/back1.png',
+  'https://26007194.fs1.hubspotusercontent-eu1.net/hubfs/26007194/Business%20Card%20Generator%20Files%20(Do%20Not%20Delete)/back2.png',
+  'https://26007194.fs1.hubspotusercontent-eu1.net/hubfs/26007194/Business%20Card%20Generator%20Files%20(Do%20Not%20Delete)/back3.png',
+  'https://26007194.fs1.hubspotusercontent-eu1.net/hubfs/26007194/Business%20Card%20Generator%20Files%20(Do%20Not%20Delete)/back4.png',
+  'https://26007194.fs1.hubspotusercontent-eu1.net/hubfs/26007194/Business%20Card%20Generator%20Files%20(Do%20Not%20Delete)/back5.png'
+];
+
+const DEFAULTS = {
+  password: 'envipco2024',
+  coords: {
+    name:    {x:28,    y:100},
+    title:   {x:28,    y:87},
+    email:   {x:39,    y:54.5},
+    mobile:  {x:39,    y:64},
+    address: {x:160.5, y:66.5}
+  },
+  fontSizes: {name:13, title:8, email:7, mobile:7, address:7},
+  addressLeading: 10
+};
+
+const PT = 28.3465;
+const CARD_W = 9.1 * PT;
+const CARD_H = 6.1 * PT;
+
+let S = loadState();
+
+// Poppins font buffers (TTF)
+let poppinsRegularBuf = null;
+let poppinsMediumBuf = null;
+let poppinsSemiBoldBuf = null;
+
+async function fetchFontBuf(url) {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  const buf = await res.arrayBuffer();
+  const header = new Uint8Array(buf, 0, 4);
+  const magic = ((header[0] << 24) | (header[1] << 16) | (header[2] << 8) | header[3]) >>> 0;
+  if (magic !== 0x00010000 && magic !== 0x4F54544F) throw new Error('Not a valid font file');
+  return new Uint8Array(buf);
+}
+
+async function loadPoppinsFonts() {
+  const sources = [
+    {
+      regular:  'https://26007194.fs1.hubspotusercontent-eu1.net/hubfs/26007194/Business%20Card%20Generator%20Files%20(Do%20Not%20Delete)/Fonts%20Poppins/Poppins-Regular.ttf',
+      medium:   'https://26007194.fs1.hubspotusercontent-eu1.net/hubfs/26007194/Business%20Card%20Generator%20Files%20(Do%20Not%20Delete)/Fonts%20Poppins/Poppins-Medium.ttf',
+      semibold: 'https://26007194.fs1.hubspotusercontent-eu1.net/hubfs/26007194/Business%20Card%20Generator%20Files%20(Do%20Not%20Delete)/Fonts%20Poppins/Poppins-SemiBold.ttf'
+    }
+  ];
+  for (const urls of sources) {
+    try {
+      const [r, m, s] = await Promise.all([
+        fetchFontBuf(urls.regular),
+        fetchFontBuf(urls.medium),
+        fetchFontBuf(urls.semibold)
+      ]);
+      poppinsRegularBuf  = r;
+      poppinsMediumBuf   = m;
+      poppinsSemiBoldBuf = s;
+      console.log('Poppins fonts loaded successfully');
+      return;
+    } catch(err) {
+      console.warn('Font source failed:', err);
+    }
+  }
+  console.warn('All font sources failed, will use Helvetica fallback on export');
+}
+loadPoppinsFonts();
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem('envipco_bc_v3');
+    const s = raw ? JSON.parse(raw) : {};
+    return {
+      password:       s.password       || DEFAULTS.password,
+      coords:         s.coords         || JSON.parse(JSON.stringify(DEFAULTS.coords)),
+      fontSizes:      s.fontSizes      || JSON.parse(JSON.stringify(DEFAULTS.fontSizes)),
+      addressLeading: s.addressLeading != null ? s.addressLeading : DEFAULTS.addressLeading,
+      artFront:       s.artFront       || null,
+      artBacks:       s.artBacks       || [null,null,null,null,null]
+    };
+  } catch(e) {
+    return {password:DEFAULTS.password, coords:JSON.parse(JSON.stringify(DEFAULTS.coords)),
+            fontSizes:JSON.parse(JSON.stringify(DEFAULTS.fontSizes)), addressLeading:DEFAULTS.addressLeading,
+            artFront:null, artBacks:[null,null,null,null,null]};
+  }
+}
+function saveState() { localStorage.setItem('envipco_bc_v3', JSON.stringify(S)); }
+
+// PASSWORD
+function checkPassword() {
+  const v = document.getElementById('pw-input').value;
+  if (v === S.password) {
+    document.getElementById('gate').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    initApp();
+  } else {
+    document.getElementById('gate-error').textContent = 'Incorrect password. Please try again.';
+    document.getElementById('pw-input').value = '';
+  }
+}
+document.getElementById('pw-input').addEventListener('keydown', e => { if(e.key==='Enter') checkPassword(); });
+
+function savePassword() {
+  const np = document.getElementById('newPassword').value.trim();
+  if (!np) return alert('Please enter a new password.');
+  S.password = np;
+  saveState();
+  document.getElementById('newPassword').value = '';
+  alert('Password updated successfully.');
+}
+
+function initApp() {
+  renderBacksGrid();
+  renderSettingsArtwork();
+  renderSettingsCoords();
+  loadFontSizesUI();
+}
+
+// SCREENS
+function goToScreen2() {
+  const fields = ['firstName','lastName','jobTitle','email','mobile','officeAddress'];
+  for (const id of fields) {
+    const el = document.getElementById(id);
+    if (!(el.value.trim())) { alert('Please fill in all required fields before continuing.'); return; }
+  }
+  document.getElementById('screen1').classList.remove('active');
+  document.getElementById('screen2').classList.add('active');
+  document.getElementById('dot1').classList.remove('active');
+  document.getElementById('dot2').classList.add('active');
+}
+function goToScreen1() {
+  document.getElementById('screen2').classList.remove('active');
+  document.getElementById('screen1').classList.add('active');
+  document.getElementById('dot2').classList.remove('active');
+  document.getElementById('dot1').classList.add('active');
+}
+
+function getBackSrc(i) { return S.artBacks[i] || EMBEDDED_BACKS[i]; }
+
+function renderBacksGrid() {
+  const g = document.getElementById('backsGrid');
+  g.innerHTML = '';
+  for (let i=0; i<5; i++) {
+    const lbl = document.createElement('label');
+    lbl.className = 'back-option';
+    lbl.innerHTML = `
+      <input type="checkbox" id="back-${i}" checked>
+      <div class="back-thumb">
+        <img src="${getBackSrc(i)}" alt="Design ${i+1}">
+        <div class="back-check">&#x2713;</div>
+      </div>
+      <div class="back-label">Design ${i+1}</div>`;
+    g.appendChild(lbl);
+  }
+}
+
+function getSelectedBacks() {
+  const sel = [];
+  for (let i=0; i<5; i++) {
+    const cb = document.getElementById(`back-${i}`);
+    if (cb && cb.checked) sel.push(i);
+  }
+  return sel;
+}
+
+// SETTINGS MODAL
+function openSettings() {
+  renderSettingsArtwork();
+  renderSettingsCoords();
+  loadFontSizesUI();
+  document.getElementById('settings-overlay').classList.add('open');
+  switchTab('artwork', document.querySelector('.modal-tab'));
+}
+function closeSettings() {
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('settings-overlay')) closeSettings();
+}
+
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-'+id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'positioning') setTimeout(updatePreview, 80);
+}
+
+function renderSettingsArtwork() {
+  const slotsDiv = document.getElementById('artworkSlots');
+  slotsDiv.innerHTML = '';
+  const frontSlot = document.createElement('div');
+  frontSlot.className = 'upload-slot';
+  frontSlot.innerHTML = `
+    <input type="file" accept="image/*" onchange="handleUpload('front',this)">
+    <img class="upload-thumb" src="${S.artFront || 'https://26007194.fs1.hubspotusercontent-eu1.net/hubfs/26007194/Business%20Card%20Generator%20Files%20(Do%20Not%20Delete)/front.png'}" id="sThumbFront">
+    <div class="upload-info"><div class="upload-name">Front Background</div><div class="upload-hint">Click to replace</div></div>`;
+  slotsDiv.appendChild(frontSlot);
+  for (let i=0; i<5; i++) {
+    const s = document.createElement('div');
+    s.className = 'upload-slot';
+    s.innerHTML = `
+      <input type="file" accept="image/*" onchange="handleUpload(${i},this)">
+      <img class="upload-thumb" src="${getBackSrc(i)}" id="sThumb${i}">
+      <div class="upload-info"><div class="upload-name">Back Design ${i+1}</div><div class="upload-hint">Click to replace</div></div>`;
+    slotsDiv.appendChild(s);
+  }
+}
+
+function renderSettingsCoords() {
+  const fields = [
+    {key:'name',label:'Full Name'},
+    {key:'title',label:'Professional Title'},
+    {key:'email',label:'Email'},
+    {key:'mobile',label:'Work Mobile'},
+    {key:'address',label:'Office Address'},
+  ];
+  const cf = document.getElementById('coordFields');
+  cf.innerHTML = '';
+  fields.forEach(f => {
+    const c = S.coords[f.key];
+    cf.innerHTML += `
+      <div class="coord-section-label">${f.label}</div>
+      <div class="coords-grid">
+        <div class="coord-field"><label>X (pt)</label><input type="number" id="cx-${f.key}" value="${c.x}" step="0.5" oninput="updatePreview()"></div>
+        <div class="coord-field"><label>Y (pt)</label><input type="number" id="cy-${f.key}" value="${c.y}" step="0.5" oninput="updatePreview()"></div>
+      </div>`;
+  });
+}
+
+function loadFontSizesUI() {
+  document.getElementById('fs-name').value    = S.fontSizes.name;
+  document.getElementById('fs-title').value   = S.fontSizes.title;
+  document.getElementById('fs-email').value   = S.fontSizes.email;
+  document.getElementById('fs-mobile').value  = S.fontSizes.mobile;
+  document.getElementById('fs-address').value = S.fontSizes.address;
+  document.getElementById('fs-address-leading').value = S.addressLeading;
+  const previewBg = document.getElementById('previewBg');
+  if (previewBg) previewBg.src = S.artFront || 'https://26007194.fs1.hubspotusercontent-eu1.net/hubfs/26007194/Business%20Card%20Generator%20Files%20(Do%20Not%20Delete)/front.png';
+}
+
+function updatePreview() {
+  const wrap = document.getElementById('previewWrap');
+  if (!wrap) return;
+  wrap.querySelectorAll('.preview-text').forEach(el => el.remove());
+
+  const firstName = document.getElementById('firstName')?.value.trim() || 'First';
+  const lastName  = document.getElementById('lastName')?.value.trim() || 'Last';
+  const jobTitle  = document.getElementById('jobTitle')?.value.trim() || 'Professional Title';
+  const email     = document.getElementById('email')?.value.trim() || 'email@envipco.com';
+  const mobile    = document.getElementById('mobile')?.value.trim() || '+31 6 00 00 00 00';
+  const addressRaw = document.getElementById('officeAddress')?.value.trim() || 'Office Address';
+
+  const coords = {};
+  ['name','title','email','mobile','address'].forEach(k => {
+    const xEl = document.getElementById(`cx-${k}`);
+    const yEl = document.getElementById(`cy-${k}`);
+    coords[k] = { x: xEl ? parseFloat(xEl.value)||0 : 0, y: yEl ? parseFloat(yEl.value)||0 : 0 };
+  });
+  const fontSizes = {};
+  const fsMap = {name:'fs-name',title:'fs-title',email:'fs-email',mobile:'fs-mobile',address:'fs-address'};
+  Object.keys(fsMap).forEach(k => {
+    const el = document.getElementById(fsMap[k]);
+    fontSizes[k] = el ? parseFloat(el.value)||7 : 7;
+  });
+  const addressLeading = parseFloat(document.getElementById('fs-address-leading')?.value) || 9;
+
+  const wrapRect = wrap.getBoundingClientRect();
+  if (wrapRect.width === 0) return;
+  const scaleX = wrapRect.width / CARD_W;
+  const scaleY = wrapRect.height / CARD_H;
+
+  const textItems = [
+    {text:`${firstName} ${lastName}`, key:'name', weight:600},
+    {text:jobTitle, key:'title', weight:500},
+    {text:email, key:'email', weight:400},
+    {text:mobile, key:'mobile', weight:400},
+    {text:addressRaw, key:'address', weight:400, multiline:true},
+  ];
+
+  textItems.forEach(item => {
+    const el = document.createElement('div');
+    el.className = 'preview-text';
+    el.textContent = item.text;
+    const leftPx = coords[item.key].x * scaleX;
+    const bottomPx = coords[item.key].y * scaleY;
+    const fontPx = fontSizes[item.key] * scaleX;
+    const topPx = wrapRect.height - bottomPx - fontPx;
+    el.style.left = leftPx + 'px';
+    el.style.top = topPx + 'px';
+    el.style.fontSize = fontPx + 'px';
+    el.style.fontWeight = item.weight;
+    if (item.multiline) {
+      el.style.lineHeight = (addressLeading * scaleX) + 'px';
+      el.style.whiteSpace = 'pre-wrap';
+    } else {
+      el.style.lineHeight = '1';
+      el.style.whiteSpace = 'nowrap';
+    }
+    wrap.appendChild(el);
+  });
+}
+
+function handleUpload(key, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const data = e.target.result;
+    if (key === 'front') {
+      S.artFront = data;
+      const t = document.getElementById('sThumbFront');
+      if (t) t.src = data;
+      const previewBg = document.getElementById('previewBg');
+      if (previewBg) previewBg.src = data;
+    } else {
+      S.artBacks[key] = data;
+      const t = document.getElementById(`sThumb${key}`);
+      if (t) t.src = data;
+      const gridImg = document.querySelector(`#backsGrid label:nth-child(${key+1}) img`);
+      if (gridImg) gridImg.src = data;
+    }
+    saveState();
+  };
+  reader.readAsDataURL(file);
+}
+
+function saveSettings() {
+  const fields = ['name','title','email','mobile','address'];
+  fields.forEach(k => {
+    S.coords[k] = {
+      x: parseFloat(document.getElementById(`cx-${k}`).value)||0,
+      y: parseFloat(document.getElementById(`cy-${k}`).value)||0
+    };
+  });
+  S.fontSizes = {
+    name:    parseFloat(document.getElementById('fs-name').value)||9,
+    title:   parseFloat(document.getElementById('fs-title').value)||7.5,
+    email:   parseFloat(document.getElementById('fs-email').value)||7,
+    mobile:  parseFloat(document.getElementById('fs-mobile').value)||7,
+    address: parseFloat(document.getElementById('fs-address').value)||6.5
+  };
+  S.addressLeading = parseFloat(document.getElementById('fs-address-leading').value)||9;
+  saveState();
+  alert('Settings saved!');
+}
+
+// PDF EXPORT
+async function exportPDF() {
+  const selected = getSelectedBacks();
+  if (!selected.length) return alert('Please select at least one back design.');
+
+  const btn = document.getElementById('exportBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Generating…';
+
+  try {
+    const {PDFDocument, rgb} = PDFLib;
+    const W = CARD_W;
+    const H = CARD_H;
+
+    const pdf = await PDFDocument.create();
+    pdf.registerFontkit(fontkit);
+
+    // If fonts didn't load at startup, try again now
+    if (!poppinsSemiBoldBuf || !poppinsMediumBuf || !poppinsRegularBuf) {
+      await loadPoppinsFonts();
+    }
+
+    let fontSemiBold, fontMedium, fontRegular;
+    if (poppinsSemiBoldBuf && poppinsMediumBuf && poppinsRegularBuf) {
+      fontSemiBold = await pdf.embedFont(poppinsSemiBoldBuf);
+      fontMedium   = await pdf.embedFont(poppinsMediumBuf);
+      fontRegular  = await pdf.embedFont(poppinsRegularBuf);
+    } else {
+      fontSemiBold = await pdf.embedFont(PDFLib.StandardFonts.HelveticaBold);
+      fontMedium   = await pdf.embedFont(PDFLib.StandardFonts.Helvetica);
+      fontRegular  = await pdf.embedFont(PDFLib.StandardFonts.Helvetica);
+    }
+
+    const frontSrc = S.artFront || 'https://26007194.fs1.hubspotusercontent-eu1.net/hubfs/26007194/Business%20Card%20Generator%20Files%20(Do%20Not%20Delete)/front.png';
+    const frontImg = await embedImage(pdf, frontSrc);
+
+    const firstName = document.getElementById('firstName').value.trim();
+    const lastName  = document.getElementById('lastName').value.trim();
+    const jobTitle  = document.getElementById('jobTitle').value.trim();
+    const email     = document.getElementById('email').value.trim();
+    const mobile    = document.getElementById('mobile').value.trim();
+    const addressRaw = document.getElementById('officeAddress').value.trim();
+    const addressLines = addressRaw.split('\n').map(l => l.trim()).filter(l => l);
+
+    const c = S.coords;
+    const fs = S.fontSizes;
+    const addrLeading = S.addressLeading;
+
+    for (const bi of selected) {
+      // Front page
+      const fp = pdf.addPage([W, H]);
+      fp.drawImage(frontImg, {x:0, y:0, width:W, height:H});
+      fp.drawText(`${firstName} ${lastName}`, {x:c.name.x, y:c.name.y, font:fontSemiBold, size:fs.name, color:rgb(0,0,0)});
+      fp.drawText(jobTitle, {x:c.title.x, y:c.title.y, font:fontMedium, size:fs.title, color:rgb(0,0,0)});
+      fp.drawText(email,    {x:c.email.x, y:c.email.y, font:fontRegular, size:fs.email, color:rgb(0,0,0)});
+      fp.drawText(mobile,   {x:c.mobile.x, y:c.mobile.y, font:fontRegular, size:fs.mobile, color:rgb(0,0,0)});
+
+      // Multi-line address
+      addressLines.forEach((line, idx) => {
+        fp.drawText(line, {
+          x: c.address.x,
+          y: c.address.y - (idx * addrLeading),
+          font: fontRegular,
+          size: fs.address,
+          color: rgb(0,0,0)
+        });
+      });
+
+      // Back page
+      const backSrc = S.artBacks[bi] || EMBEDDED_BACKS[bi];
+      const backImg = await embedImage(pdf, backSrc);
+      const bp = pdf.addPage([W, H]);
+      const imgAspect = backImg.width / backImg.height;
+      const pageAspect = W / H;
+      let drawW, drawH, drawX, drawY;
+      if (imgAspect >= pageAspect) {
+        drawW = W; drawH = W / imgAspect; drawX = 0; drawY = (H - drawH) / 2;
+      } else {
+        drawH = H; drawW = H * imgAspect; drawX = (W - drawW) / 2; drawY = 0;
+      }
+      bp.drawRectangle({x:0, y:0, width:W, height:H, color:rgb(1,1,1)});
+      bp.drawImage(backImg, {x:drawX, y:drawY, width:drawW, height:drawH});
+    }
+
+    const bytes = await pdf.save();
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+    const base64pdf = btoa(binary);
+    const dataUrl = 'data:application/pdf;base64,' + base64pdf;
+    const a = document.createElement('a');
+    a.href = dataUrl;
+    a.download = `${firstName}_${lastName}_business_cards.pdf`;
+    a.target = '_blank';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+  } catch(err) {
+    console.error(err);
+    alert('Export failed: ' + err.message);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = 'Export PDF';
+}
+
+async function embedImage(pdf, src) {
+  let bytes;
+  if (src.startsWith('data:')) {
+    const base64 = src.split(',')[1];
+    const binary = atob(base64);
+    bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  } else {
+    const res = await fetch(src);
+    bytes = new Uint8Array(await res.arrayBuffer());
+  }
+  if (bytes[0] === 0x89 && bytes[1] === 0x50) {
+    return await pdf.embedPng(bytes);
+  } else {
+    return await pdf.embedJpg(bytes);
+  }
+}
+</script>
+</body>
+</html>
