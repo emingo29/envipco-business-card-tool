@@ -206,6 +206,7 @@
         <div class="settings-section">
           <h3>Card Artwork</h3>
           <div id="artworkSlots"></div>
+          <button class="btn btn-ghost" style="width:100%;margin-top:16px;color:#c0392b;border-color:#f0c0b8" onclick="resetArtwork()">↺ Reset all designs to defaults</button>
         </div>
       </div>
 
@@ -590,6 +591,17 @@ function handleUpload(key, input) {
     saveState();
   };
   reader.readAsDataURL(file);
+}
+
+function resetArtwork() {
+  if (!confirm('Reset all card designs back to the originals? Any custom uploads will be removed.')) return;
+  S.artFront = null;
+  S.artBacks = [null, null, null, null, null];
+  saveState();
+  renderSettingsArtwork();
+  renderBacksGrid();
+  const previewBg = document.getElementById('previewBg');
+  if (previewBg) previewBg.src = 'https://26007194.fs1.hubspotusercontent-eu1.net/hubfs/26007194/Business%20Card%20Generator%20Files%20(Do%20Not%20Delete)/front.png';
 }
 
 function saveSettings() {
