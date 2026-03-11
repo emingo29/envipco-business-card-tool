@@ -719,21 +719,56 @@ async function exportPDF() {
 }
 
 async function embedImage(pdf, src) {
-  let bytes;
+  // If it's a canvas/blob data URL already, handle directly
   if (src.startsWith('data:')) {
+    const mime = src.split(';')[0].split(':')[1];
     const base64 = src.split(',')[1];
     const binary = atob(base64);
-    bytes = new Uint8Array(binary.length);
+    const bytes = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-  } else {
-    const res = await fetch(src);
-    bytes = new Uint8Array(await res.arrayBuffer());
+    if (mime === 'image/png') return await pdf.embedPng(bytes);
+    if (mime === 'image/jpeg' || mime === 'image/jpg') return await pdf.embedJpg(bytes);
+    // For webp or other formats embedded as data URLs, convert via canvas
+    return await convertAndEmbed(pdf, src);
   }
-  if (bytes[0] === 0x89 && bytes[1] === 0x50) {
-    return await pdf.embedPng(bytes);
-  } else {
-    return await pdf.embedJpg(bytes);
-  }
+
+  // Fetch remote URL
+  const res = await fetch(src);
+  const buf = await res.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+
+  // Detect by magic bytes
+  const isPng = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4E && bytes[3] === 0x47;
+  const isJpg = bytes[0] === 0xFF && bytes[1] === 0xD8;
+
+  if (isPng) return await pdf.embedPng(bytes);
+  if (isJpg) return await pdf.embedJpg(bytes);
+
+  // Unknown format (WebP, AVIF, etc.) — convert to PNG via canvas
+  return await convertAndEmbed(pdf, src);
+}
+
+async function convertAndEmbed(pdf, src) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = async () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        canvas.getContext('2d').drawImage(img, 0, 0);
+        const dataUrl = canvas.toDataURL('image/png');
+        const base64 = dataUrl.split(',')[1];
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        resolve(await pdf.embedPng(bytes));
+      } catch(e) { reject(e); }
+    };
+    img.onerror = () => reject(new Error('Could not load image for conversion: ' + src));
+    img.src = src;
+  });
 }
 </script>
 </body>
